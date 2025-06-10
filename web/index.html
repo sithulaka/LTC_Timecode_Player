@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LTC Timecode Player & Analyzer</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="header-content">
+                <h1 class="title">
+                    <i class="fas fa-play-circle"></i>
+                    LTC Timecode Player & Analyzer
+                </h1>
+                <p class="subtitle">Professional SMPTE Linear Time Code Analysis Tool</p>
+            </div>
+        </header>
+
+        <div class="main-content">
+            <!-- File Loading Section -->
+            <div class="section" id="fileSection">
+                <h2 class="section-title">
+                    <i class="fas fa-file-audio"></i>
+                    Load LTC Audio File
+                </h2>
+                  <div class="file-drop-zone" id="fileDropZone">
+                    <div class="drop-content">
+                        <i class="fas fa-cloud-upload-alt drop-icon"></i>
+                        <p class="drop-text">Drop LTC audio file here or click to browse</p>
+                        <p class="drop-hint">Supports WAV, AIFF, FLAC formats</p>
+                        <button class="browse-btn" id="browseBtn">
+                            <i class="fas fa-folder-open"></i>
+                            Browse for File
+                        </button>
+                    </div>
+                    <input type="file" id="fileInput" accept=".wav,.aiff,.flac" style="display: none;">
+                </div>
+
+                <div class="file-info" id="fileInfo" style="display: none;">
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <label>Filename:</label>
+                            <span id="fileName">-</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Duration:</label>
+                            <span id="fileDuration">-</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Sample Rate:</label>
+                            <span id="fileSampleRate">-</span>
+                        </div>
+                        <div class="info-item">
+                            <label>File Size:</label>
+                            <span id="fileSize">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Analysis Results Section -->
+            <div class="section" id="analysisSection" style="display: none;">
+                <h2 class="section-title">
+                    <i class="fas fa-chart-line"></i>
+                    LTC Analysis Results
+                </h2>
+                
+                <div class="analysis-grid">
+                    <div class="analysis-card">
+                        <h3>Signal Quality</h3>
+                        <div class="quality-meter">
+                            <div class="quality-bar">
+                                <div class="quality-fill" id="qualityFill"></div>
+                            </div>
+                            <span class="quality-text" id="qualityText">0%</span>
+                        </div>
+                    </div>
+                    
+                    <div class="analysis-card">
+                        <h3>Frame Rate</h3>
+                        <div class="analysis-value" id="frameRate">Unknown</div>
+                    </div>
+                    
+                    <div class="analysis-card">
+                        <h3>Valid Frames</h3>
+                        <div class="analysis-value" id="validFrames">0</div>
+                    </div>
+                    
+                    <div class="analysis-card">
+                        <h3>Sync Words</h3>
+                        <div class="analysis-value" id="syncWords">0</div>
+                    </div>
+                </div>
+
+                <!-- Waveform Display -->
+                <div class="waveform-container" id="waveformContainer" style="display: none;">
+                    <h3>Audio Waveform</h3>
+                    <div class="waveform-display">
+                        <img id="waveformImage" alt="LTC Waveform" style="width: 100%; height: auto;">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Timecode Player Section -->
+            <div class="section" id="playerSection" style="display: none;">
+                <h2 class="section-title">
+                    <i class="fas fa-clock"></i>
+                    Timecode Player
+                </h2>
+                
+                <div class="player-controls">
+                    <div class="timecode-display" id="timecodeDisplay">
+                        00:00:00:00
+                    </div>
+                    
+                    <div class="position-info">
+                        <span>Audio Position: </span>
+                        <span id="audioPosition">00:00.000</span>
+                    </div>
+                    
+                    <div class="scrub-control">
+                        <input type="range" id="positionSlider" class="position-slider" min="0" max="100" value="0">
+                        <div class="time-labels">
+                            <span id="currentTime">00:00</span>
+                            <span id="totalTime">00:00</span>
+                        </div>
+                    </div>
+                    
+                    <div class="player-buttons">
+                        <button class="player-btn" id="jumpStartBtn">
+                            <i class="fas fa-fast-backward"></i>
+                            Start
+                        </button>
+                        <button class="player-btn" id="stepBackBtn">
+                            <i class="fas fa-step-backward"></i>
+                            -1f
+                        </button>
+                        <button class="player-btn primary" id="playPauseBtn">
+                            <i class="fas fa-play"></i>
+                            Play
+                        </button>
+                        <button class="player-btn" id="stepForwardBtn">
+                            <i class="fas fa-step-forward"></i>
+                            +1f
+                        </button>
+                        <button class="player-btn" id="jumpEndBtn">
+                            <i class="fas fa-fast-forward"></i>
+                            End
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Timecode List Section -->
+            <div class="section" id="timecodeListSection" style="display: none;">
+                <h2 class="section-title">
+                    <i class="fas fa-list"></i>
+                    Timecode List
+                    <button class="export-btn" id="exportBtn">
+                        <i class="fas fa-download"></i>
+                        Export Report
+                    </button>
+                </h2>
+                
+                <div class="timecode-table-container">
+                    <table class="timecode-table" id="timecodeTable">
+                        <thead>
+                            <tr>
+                                <th>Audio Time</th>
+                                <th>Timecode</th>
+                                <th>Hours</th>
+                                <th>Minutes</th>
+                                <th>Seconds</th>
+                                <th>Frames</th>
+                                <th>User Bits</th>
+                            </tr>
+                        </thead>
+                        <tbody id="timecodeTableBody">
+                            <!-- Timecode rows will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="table-pagination">
+                    <button class="pagination-btn" id="prevPageBtn">
+                        <i class="fas fa-chevron-left"></i>
+                        Previous
+                    </button>
+                    <span class="page-info" id="pageInfo">Page 1 of 1</span>
+                    <button class="pagination-btn" id="nextPageBtn">
+                        Next
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Validation Section -->
+            <div class="section" id="validationSection" style="display: none;">
+                <h2 class="section-title">
+                    <i class="fas fa-check-circle"></i>
+                    Signal Validation
+                </h2>
+                
+                <div class="validation-status" id="validationStatus">
+                    <div class="status-indicator" id="statusIndicator">
+                        <i class="fas fa-question-circle"></i>
+                        <span>Checking signal...</span>
+                    </div>
+                </div>
+                
+                <div class="validation-checks" id="validationChecks">
+                    <!-- Validation check items will be populated here -->
+                </div>
+                
+                <div class="recommendations" id="recommendations">
+                    <h3>Recommendations:</h3>
+                    <ul id="recommendationsList">
+                        <!-- Recommendations will be populated here -->
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Status Messages -->
+        <div class="toast" id="toast"></div>
+        
+        <!-- Loading Overlay -->
+        <div class="loading-overlay" id="loadingOverlay" style="display: none;">
+            <div class="loading-content">
+                <div class="spinner"></div>
+                <p>Analyzing LTC signal...</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="eel.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

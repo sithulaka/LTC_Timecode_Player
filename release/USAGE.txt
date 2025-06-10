@@ -1,0 +1,25 @@
+# LTC Timecode Player - Quick Start
+
+## Running the Application
+1. Double-click on LTC-Timecode-Player.exe
+2. The application will open in your default web browser
+3. Load an LTC audio file using drag & drop or the browse button
+
+## Supported File Formats
+- WAV files (*.wav)
+- AIFF files (*.aiff)  
+- FLAC files (*.flac)
+
+## System Requirements
+- Windows 10 or later
+- Modern web browser (Chrome, Firefox, Edge)
+- Minimum 4GB RAM recommended
+
+## Troubleshooting
+- If the application doesn't start, try running as administrator
+- Make sure your antivirus isn't blocking the executable
+- Check Windows Defender SmartScreen settings if blocked
+
+## Support
+For issues and support, visit:
+https://github.com/sithulaka/LTC-Timecode-Player/issues

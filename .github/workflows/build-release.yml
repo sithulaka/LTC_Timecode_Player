@@ -1,0 +1,129 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller
+    
+    - name: Build executable
+      run: |
+        python build_executable.py
+    
+    - name: Upload Windows executable
+      uses: actions/upload-artifact@v3
+      with:
+        name: LTC-Timecode-Player-Windows
+        path: release/
+    
+    - name: Create Release
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          release/LTC-Timecode-Player.exe
+          release/README.md
+          release/LICENSE
+          release/USAGE.txt
+        name: Release ${{ github.ref_name }}
+        body: |
+          ## LTC Timecode Player ${{ github.ref_name }}
+          
+          ### Download
+          - **Windows**: Download `LTC-Timecode-Player.exe`
+          - **Other platforms**: Run from source code
+          
+          ### What's New
+          - Professional LTC timecode analysis and playback
+          - Modern web-based interface
+          - Support for WAV, AIFF, FLAC formats
+          - Frame-accurate timecode navigation
+          - Signal quality analysis and validation
+          - Export detailed analysis reports
+          
+          ### System Requirements
+          - Windows 10 or later
+          - Modern web browser (Chrome, Firefox, Edge)
+          - 4GB RAM recommended
+          
+          ### Installation
+          1. Download `LTC-Timecode-Player.exe`
+          2. Double-click to run (no installation required)
+          3. Load your LTC audio files and start analyzing!
+          
+          See `USAGE.txt` for detailed instructions.
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-cross-platform:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+    
+    - name: Install system dependencies (Linux)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libsndfile1 python3-tk
+    
+    - name: Install system dependencies (macOS)
+      if: matrix.os == 'macos-latest'
+      run: |
+        brew install libsndfile
+    
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller
+    
+    - name: Build executable (Linux)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        pyinstaller --onefile --add-data "web:web" --hidden-import=tkinter app.py --name=LTC-Timecode-Player-Linux
+    
+    - name: Build executable (macOS)
+      if: matrix.os == 'macos-latest'
+      run: |
+        pyinstaller --onefile --add-data "web:web" --hidden-import=tkinter app.py --name=LTC-Timecode-Player-macOS
+    
+    - name: Upload Linux executable
+      if: matrix.os == 'ubuntu-latest'
+      uses: actions/upload-artifact@v3
+      with:
+        name: LTC-Timecode-Player-Linux
+        path: dist/LTC-Timecode-Player-Linux
+    
+    - name: Upload macOS executable
+      if: matrix.os == 'macos-latest'
+      uses: actions/upload-artifact@v3
+      with:
+        name: LTC-Timecode-Player-macOS
+        path: dist/LTC-Timecode-Player-macOS

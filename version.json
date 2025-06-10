@@ -1,0 +1,14 @@
+{
+  "version": "1.0.0",
+  "build_date": "2025-06-10T13:57:00",
+  "build_number": 1717945020,
+  "description": "Initial release of LTC Timecode Player & Analyzer",
+  "features": [
+    "Professional LTC timecode analysis",
+    "Modern web-based interface",
+    "Support for WAV, AIFF, FLAC formats",
+    "Frame-accurate timecode navigation",
+    "Signal quality analysis and validation",
+    "Export detailed analysis reports"
+  ]
+}
