@@ -30,6 +30,8 @@ jobs:
         pip install pyinstaller
 
     - name: Build executable
+      env:
+        PYTHONUTF8: '1'
       run: |
         python build_executable.py
 
