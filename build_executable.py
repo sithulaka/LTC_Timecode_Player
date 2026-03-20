@@ -111,7 +111,13 @@ def build_executable():
 
 def create_release_package():
     """Create a release package with documentation"""
-    if not os.path.exists('dist/LTC-Timecode-Player.exe'):
+    if sys.platform == 'win32':
+        exe_name = 'LTC-Timecode-Player.exe'
+    else:
+        exe_name = 'LTC-Timecode-Player'
+
+    exe_path = os.path.join('dist', exe_name)
+    if not os.path.exists(exe_path):
         print("✗ Executable not found")
         return False
     
@@ -122,7 +128,7 @@ def create_release_package():
     os.makedirs(release_dir)
     
     # Copy executable
-    shutil.copy2('dist/LTC-Timecode-Player.exe', f'{release_dir}/LTC-Timecode-Player.exe')
+    shutil.copy2(exe_path, f'{release_dir}/{exe_name}')
     
     # Copy documentation
     files_to_copy = ['README.md', 'LICENSE']
@@ -195,11 +201,15 @@ def main():
     print("\n" + "=" * 60)
     print("✓ Build completed successfully!")
     print("=" * 60)
-    print(f"Executable location: {os.path.abspath('dist/LTC-Timecode-Player.exe')}")
+    if sys.platform == 'win32':
+        exe_name = 'LTC-Timecode-Player.exe'
+    else:
+        exe_name = 'LTC-Timecode-Player'
+    print(f"Executable location: {os.path.abspath(os.path.join('dist', exe_name))}")
     print(f"Release package: {os.path.abspath('release/')}")
     print("\nTo test the executable:")
     print("1. Navigate to the 'dist' folder")
-    print("2. Double-click on 'LTC-Timecode-Player.exe'")
+    print(f"2. Run '{exe_name}'")
     print("\nFor distribution, use the files in the 'release' folder")
     
     return True

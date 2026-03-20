@@ -228,10 +228,21 @@ body {
 
 .quality-fill {
     height: 100%;
-    background: linear-gradient(90deg, #ef4444, #f59e0b, #10b981);
     width: 0%;
     transition: width 0.5s ease;
     border-radius: 4px;
+}
+
+.quality-fill.quality-low {
+    background: #ef4444;
+}
+
+.quality-fill.quality-medium {
+    background: #f59e0b;
+}
+
+.quality-fill.quality-high {
+    background: #10b981;
 }
 
 .quality-text {

@@ -9,48 +9,142 @@ on:
 jobs:
   build-windows:
     runs-on: windows-latest
-    
+
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.9'
-    
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install pyinstaller
-    
+
     - name: Build executable
       run: |
         python build_executable.py
-    
-    - name: Upload Windows executable
-      uses: actions/upload-artifact@v3
+
+    - name: Upload Windows artifact
+      uses: actions/upload-artifact@v4
       with:
         name: LTC-Timecode-Player-Windows
-        path: release/
-    
-    - name: Create Release
-      if: startsWith(github.ref, 'refs/tags/')
+        path: release/LTC-Timecode-Player.exe
+
+  build-linux:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libsndfile1 python3-tk
+
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller
+
+    - name: Build executable
+      run: |
+        pyinstaller --onefile --add-data "web:web" --hidden-import=tkinter app.py --name=LTC-Timecode-Player-Linux
+
+    - name: Upload Linux artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: LTC-Timecode-Player-Linux
+        path: dist/LTC-Timecode-Player-Linux
+
+  build-macos:
+    runs-on: macos-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Install system dependencies
+      run: |
+        brew install libsndfile
+
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller
+
+    - name: Build executable
+      run: |
+        pyinstaller --onefile --add-data "web:web" --hidden-import=tkinter app.py --name=LTC-Timecode-Player-macOS
+
+    - name: Upload macOS artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: LTC-Timecode-Player-macOS
+        path: dist/LTC-Timecode-Player-macOS
+
+  create-release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [build-windows, build-linux, build-macos]
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Download Windows artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: LTC-Timecode-Player-Windows
+        path: artifacts/windows
+
+    - name: Download Linux artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: LTC-Timecode-Player-Linux
+        path: artifacts/linux
+
+    - name: Download macOS artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: LTC-Timecode-Player-macOS
+        path: artifacts/macos
+
+    - name: Create GitHub Release
       uses: softprops/action-gh-release@v1
       with:
         files: |
-          release/LTC-Timecode-Player.exe
+          artifacts/windows/LTC-Timecode-Player.exe
+          artifacts/linux/LTC-Timecode-Player-Linux
+          artifacts/macos/LTC-Timecode-Player-macOS
           release/README.md
           release/LICENSE
           release/USAGE.txt
-        name: Release ${{ github.ref_name }}
+        name: LTC Timecode Player ${{ github.ref_name }}
         body: |
           ## LTC Timecode Player ${{ github.ref_name }}
-          
-          ### Download
-          - **Windows**: Download `LTC-Timecode-Player.exe`
-          - **Other platforms**: Run from source code
-          
+
+          ### Downloads
+
+          | Platform | File |
+          |----------|------|
+          | **Windows** | `LTC-Timecode-Player.exe` |
+          | **Linux** | `LTC-Timecode-Player-Linux` |
+          | **macOS** | `LTC-Timecode-Player-macOS` |
+
           ### What's New
           - Professional LTC timecode analysis and playback
           - Modern web-based interface
@@ -58,72 +152,20 @@ jobs:
           - Frame-accurate timecode navigation
           - Signal quality analysis and validation
           - Export detailed analysis reports
-          
+
           ### System Requirements
-          - Windows 10 or later
-          - Modern web browser (Chrome, Firefox, Edge)
+          - **Windows**: Windows 10 or later, modern web browser
+          - **Linux**: libsndfile installed (`apt install libsndfile1`), modern web browser
+          - **macOS**: macOS 10.15 or later, modern web browser
           - 4GB RAM recommended
-          
+
           ### Installation
-          1. Download `LTC-Timecode-Player.exe`
-          2. Double-click to run (no installation required)
-          3. Load your LTC audio files and start analyzing!
-          
+          **Windows:** Download `LTC-Timecode-Player.exe` and double-click to run (no installation required).
+
+          **Linux:** Download `LTC-Timecode-Player-Linux`, make it executable (`chmod +x LTC-Timecode-Player-Linux`), then run it.
+
+          **macOS:** Download `LTC-Timecode-Player-macOS`, make it executable (`chmod +x LTC-Timecode-Player-macOS`), then run it.
+
           See `USAGE.txt` for detailed instructions.
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  build-cross-platform:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-        
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.9'
-    
-    - name: Install system dependencies (Linux)
-      if: matrix.os == 'ubuntu-latest'
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libsndfile1 python3-tk
-    
-    - name: Install system dependencies (macOS)
-      if: matrix.os == 'macos-latest'
-      run: |
-        brew install libsndfile
-    
-    - name: Install Python dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install pyinstaller
-    
-    - name: Build executable (Linux)
-      if: matrix.os == 'ubuntu-latest'
-      run: |
-        pyinstaller --onefile --add-data "web:web" --hidden-import=tkinter app.py --name=LTC-Timecode-Player-Linux
-    
-    - name: Build executable (macOS)
-      if: matrix.os == 'macos-latest'
-      run: |
-        pyinstaller --onefile --add-data "web:web" --hidden-import=tkinter app.py --name=LTC-Timecode-Player-macOS
-    
-    - name: Upload Linux executable
-      if: matrix.os == 'ubuntu-latest'
-      uses: actions/upload-artifact@v3
-      with:
-        name: LTC-Timecode-Player-Linux
-        path: dist/LTC-Timecode-Player-Linux
-    
-    - name: Upload macOS executable
-      if: matrix.os == 'macos-latest'
-      uses: actions/upload-artifact@v3
-      with:
-        name: LTC-Timecode-Player-macOS
-        path: dist/LTC-Timecode-Player-macOS

@@ -10,14 +10,38 @@ class LTCPlayer {
         this.itemsPerPage = 50;
         this.playbackTimer = null;
         this.frameRate = 30; // Default frame rate
-        
+        this.lastRpcTime = 0;
+        this._lastFrameTime = 0;
+        this._animationFrame = null;
+        this.audioElement = null;
+        this.audioBlobUrl = null;
+        this.currentFile = null;
+
         this.init();
     }
 
     init() {
         this.setupEventListeners();
         this.setupFileDropZone();
-    }    setupEventListeners() {
+        this._createAudioElement();
+    }
+
+    _createAudioElement() {
+        this.audioElement = document.createElement('audio');
+        this.audioElement.style.display = 'none';
+        document.body.appendChild(this.audioElement);
+    }
+
+    _setAudioSource(blobUrl) {
+        if (this.audioBlobUrl) {
+            URL.revokeObjectURL(this.audioBlobUrl);
+        }
+        this.audioBlobUrl = blobUrl;
+        this.audioElement.src = blobUrl;
+        this.audioElement.load();
+    }
+
+    setupEventListeners() {
         // File input
         document.getElementById('fileInput').addEventListener('change', (e) => {
             if (e.target.files.length > 0) {
@@ -27,6 +51,7 @@ class LTCPlayer {
 
         // Browse button
         document.getElementById('browseBtn').addEventListener('click', async () => {
+            this.showLoading(true);
             try {
                 const result = await eel.browse_for_file()();
                 if (result.success) {
@@ -34,8 +59,22 @@ class LTCPlayer {
                     const loadResult = await eel.load_ltc_file(result.file_path)();
                     if (loadResult.success) {
                         this.currentAnalysis = loadResult.analysis;
-                        this.displayFileInfo({ name: loadResult.analysis.filename, size: 0 }, loadResult.analysis);
+                        this.displayFileInfo(
+                            { name: loadResult.analysis.filename, size: loadResult.analysis.file_size },
+                            loadResult.analysis
+                        );
                         this.displayAnalysisResults(loadResult.analysis);
+
+                        // Fetch audio data for playback
+                        try {
+                            const audioResult = await eel.serve_audio_file()();
+                            if (audioResult && audioResult.success && audioResult.audio_data) {
+                                this._setAudioSource(audioResult.audio_data);
+                            }
+                        } catch (audioErr) {
+                            console.warn('Could not fetch audio for playback:', audioErr);
+                        }
+
                         await this.generateWaveform();
                         await this.loadTimecodeList();
                         await this.validateSignal();
@@ -52,6 +91,8 @@ class LTCPlayer {
             } catch (error) {
                 console.error('Error browsing for file:', error);
                 this.showToast('Error opening file browser', 'error');
+            } finally {
+                this.showLoading(false);
             }
         });
 
@@ -94,13 +135,15 @@ class LTCPlayer {
         dropZone.addEventListener('drop', (e) => {
             e.preventDefault();
             dropZone.classList.remove('dragover');
-            
+
             const files = e.dataTransfer.files;
             if (files.length > 0) {
                 this.loadFile(files[0]);
             }
         });
-    }    async loadFile(file) {
+    }
+
+    async loadFile(file) {
         if (!this.isAudioFile(file)) {
             this.showToast('Please select a valid audio file (WAV, AIFF, FLAC)', 'error');
             return;
@@ -109,9 +152,15 @@ class LTCPlayer {
         this.showLoading(true);
 
         try {
-            // For web environment, we need to upload the file first
+            // Store the File object for audio playback
+            this.currentFile = file;
+
+            // Create blob URL for audio playback from the local File object
+            this._setAudioSource(URL.createObjectURL(file));
+
+            // Upload file to backend for LTC analysis
             const result = await this.uploadAndLoadFile(file);
-            
+
             if (result.success) {
                 this.currentAnalysis = result.analysis;
                 this.displayFileInfo(file, result.analysis);
@@ -136,15 +185,15 @@ class LTCPlayer {
         try {
             // Read file as data URL
             const fileReader = new FileReader();
-            
+
             return new Promise((resolve, reject) => {
                 fileReader.onload = async (event) => {
                     try {
                         const fileData = event.target.result;
-                        
+
                         // First upload the file to the backend
                         const uploadResult = await eel.save_uploaded_file(fileData, file.name)();
-                        
+
                         if (uploadResult.success) {
                             // Now analyze the uploaded file
                             const analysisResult = await eel.load_ltc_file(uploadResult.temp_path)();
@@ -156,11 +205,11 @@ class LTCPlayer {
                         reject(error);
                     }
                 };
-                
+
                 fileReader.onerror = () => {
                     reject(new Error('Failed to read file'));
                 };
-                
+
                 fileReader.readAsDataURL(file);
             });
         } catch (error) {
@@ -172,8 +221,8 @@ class LTCPlayer {
     isAudioFile(file) {
         const audioTypes = ['audio/wav', 'audio/x-wav', 'audio/aiff', 'audio/x-aiff', 'audio/flac'];
         const audioExtensions = ['.wav', '.aiff', '.flac'];
-        
-        return audioTypes.includes(file.type) || 
+
+        return audioTypes.includes(file.type) ||
                audioExtensions.some(ext => file.name.toLowerCase().endsWith(ext));
     }
 
@@ -182,9 +231,9 @@ class LTCPlayer {
         document.getElementById('fileDuration').textContent = this.formatDuration(analysis.duration);
         document.getElementById('fileSampleRate').textContent = `${analysis.sample_rate} Hz`;
         document.getElementById('fileSize').textContent = this.formatFileSize(file.size);
-        
+
         document.getElementById('fileInfo').style.display = 'block';
-        
+
         this.duration = analysis.duration;
         this.updateTimeLabels();
     }
@@ -192,7 +241,16 @@ class LTCPlayer {
     displayAnalysisResults(analysis) {
         // Update quality meter
         const qualityPercent = Math.round(analysis.signal_quality * 100);
-        document.getElementById('qualityFill').style.width = `${qualityPercent}%`;
+        const qualityFill = document.getElementById('qualityFill');
+        qualityFill.style.width = `${qualityPercent}%`;
+        qualityFill.className = 'quality-fill';
+        if (qualityPercent < 40) {
+            qualityFill.classList.add('quality-low');
+        } else if (qualityPercent < 70) {
+            qualityFill.classList.add('quality-medium');
+        } else {
+            qualityFill.classList.add('quality-high');
+        }
         document.getElementById('qualityText').textContent = `${qualityPercent}%`;
 
         // Update analysis cards
@@ -225,9 +283,9 @@ class LTCPlayer {
         try {
             this.currentPage = page;
             const startTime = page * this.itemsPerPage / this.frameRate;
-            
+
             const result = await eel.get_timecode_list(startTime, this.itemsPerPage)();
-            
+
             if (result.success) {
                 this.displayTimecodeList(result.timecode_list);
                 this.updatePagination(result.total_frames);
@@ -252,13 +310,13 @@ class LTCPlayer {
                 <td>${item.frames.toString().padStart(2, '0')}</td>
                 <td>${item.user_bits.map(b => b.toString(16).toUpperCase().padStart(2, '0')).join(' ')}</td>
             `;
-            
+
             // Make row clickable to seek to that position
             row.style.cursor = 'pointer';
             row.addEventListener('click', () => {
                 this.seekToPosition(item.timestamp / this.duration * 100);
             });
-            
+
             tbody.appendChild(row);
         });
 
@@ -268,7 +326,7 @@ class LTCPlayer {
     updatePagination(totalFrames) {
         const totalPages = Math.ceil(totalFrames / this.itemsPerPage);
         const currentPageNum = this.currentPage + 1;
-        
+
         document.getElementById('pageInfo').textContent = `Page ${currentPageNum} of ${totalPages}`;
         document.getElementById('prevPageBtn').disabled = this.currentPage === 0;
         document.getElementById('nextPageBtn').disabled = this.currentPage >= totalPages - 1;
@@ -277,7 +335,7 @@ class LTCPlayer {
     async validateSignal() {
         try {
             const result = await eel.validate_ltc_signal()();
-            
+
             if (result.success) {
                 this.displayValidationResults(result.validation);
                 document.getElementById('validationSection').style.display = 'block';
@@ -289,7 +347,7 @@ class LTCPlayer {
 
     displayValidationResults(validation) {
         const statusIndicator = document.getElementById('statusIndicator');
-        
+
         // Update status indicator
         if (validation.overall_valid) {
             statusIndicator.className = 'status-indicator valid';
@@ -324,7 +382,7 @@ class LTCPlayer {
         // Display recommendations
         const recommendationsList = document.getElementById('recommendationsList');
         recommendationsList.innerHTML = '';
-        
+
         validation.recommendations.forEach(rec => {
             const li = document.createElement('li');
             li.textContent = rec;
@@ -350,36 +408,86 @@ class LTCPlayer {
         if (!this.currentAnalysis) return;
 
         this.isPlaying = true;
+        this.lastRpcTime = 0;
         document.getElementById('playPauseBtn').innerHTML = '<i class="fas fa-pause"></i> Pause';
-        
-        // Start playback timer (simulated)
-        this.playbackTimer = setInterval(() => {
-            this.currentPosition += 1 / this.frameRate; // Advance by one frame
-            if (this.currentPosition >= this.duration) {
-                this.currentPosition = this.duration;
-                this.pause();
-            }
+
+        // Start audio playback if available
+        if (this.audioElement && this.audioBlobUrl) {
+            this.audioElement.currentTime = this.currentPosition;
+            this.audioElement.play();
+        }
+
+        // Start RAF-based playback loop
+        this._lastFrameTime = performance.now();
+        this._animationFrame = requestAnimationFrame((t) => this._playbackLoop(t));
+    }
+
+    _playbackLoop(timestamp) {
+        if (!this.isPlaying) return;
+
+        const delta = (timestamp - this._lastFrameTime) / 1000;
+        this._lastFrameTime = timestamp;
+        this.currentPosition += delta;
+
+        // Sync with audio element if available and playing
+        if (this.audioElement && !this.audioElement.paused && this.audioBlobUrl) {
+            this.currentPosition = this.audioElement.currentTime;
+        }
+
+        if (this.currentPosition >= this.duration) {
+            this.currentPosition = this.duration;
+            this.pause();
+            return;
+        }
+
+        // Throttle RPC calls to ~10/sec
+        if (timestamp - this.lastRpcTime > 100) {
+            this.lastRpcTime = timestamp;
             this.updateDisplay();
-        }, 1000 / this.frameRate);
+        } else {
+            // Still update slider/time labels without RPC
+            this._updateSliderAndLabels();
+        }
+
+        this._animationFrame = requestAnimationFrame((t) => this._playbackLoop(t));
+    }
+
+    _updateSliderAndLabels() {
+        if (this.duration > 0) {
+            const percentage = (this.currentPosition / this.duration) * 100;
+            document.getElementById('positionSlider').value = percentage;
+        }
+        this.updateTimeLabels();
     }
 
     pause() {
         this.isPlaying = false;
         document.getElementById('playPauseBtn').innerHTML = '<i class="fas fa-play"></i> Play';
-        
-        if (this.playbackTimer) {
-            clearInterval(this.playbackTimer);
-            this.playbackTimer = null;
+
+        if (this._animationFrame) {
+            cancelAnimationFrame(this._animationFrame);
+            this._animationFrame = null;
+        }
+
+        // Pause audio playback
+        if (this.audioElement && !this.audioElement.paused) {
+            this.audioElement.pause();
         }
     }
 
     jumpToStart() {
         this.currentPosition = 0;
+        if (this.audioElement && this.audioBlobUrl) {
+            this.audioElement.currentTime = 0;
+        }
         this.updateDisplay();
     }
 
     jumpToEnd() {
         this.currentPosition = this.duration;
+        if (this.audioElement && this.audioBlobUrl) {
+            this.audioElement.currentTime = this.duration;
+        }
         this.updateDisplay();
     }
 
@@ -387,22 +495,30 @@ class LTCPlayer {
         const frameTime = 1 / this.frameRate;
         this.currentPosition += direction * frameTime;
         this.currentPosition = Math.max(0, Math.min(this.currentPosition, this.duration));
+        if (this.audioElement && this.audioBlobUrl) {
+            this.audioElement.currentTime = this.currentPosition;
+        }
         this.updateDisplay();
     }
 
     seekToPosition(percentage) {
         this.currentPosition = (percentage / 100) * this.duration;
+        if (this.audioElement && this.audioBlobUrl) {
+            this.audioElement.currentTime = this.currentPosition;
+        }
         this.updateDisplay();
     }
 
     async updateDisplay() {
-        // Update position slider
-        const percentage = (this.currentPosition / this.duration) * 100;
-        document.getElementById('positionSlider').value = percentage;
-        
+        // Guard against division by zero
+        if (this.duration > 0) {
+            const percentage = (this.currentPosition / this.duration) * 100;
+            document.getElementById('positionSlider').value = percentage;
+        }
+
         // Update time labels
         this.updateTimeLabels();
-        
+
         // Update timecode display
         await this.updateTimecodeDisplay();
     }
@@ -410,7 +526,7 @@ class LTCPlayer {
     async updateTimecodeDisplay() {
         try {
             const result = await eel.get_timecode_at_position(this.currentPosition)();
-            
+
             if (result.success) {
                 document.getElementById('timecodeDisplay').textContent = result.timecode.formatted;
             } else {
@@ -419,8 +535,8 @@ class LTCPlayer {
                 const minutes = Math.floor((this.currentPosition % 3600) / 60);
                 const seconds = Math.floor(this.currentPosition % 60);
                 const frames = Math.floor((this.currentPosition % 1) * this.frameRate);
-                
-                document.getElementById('timecodeDisplay').textContent = 
+
+                document.getElementById('timecodeDisplay').textContent =
                     `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}:${frames.toString().padStart(2, '0')}`;
             }
         } catch (error) {
@@ -445,7 +561,7 @@ class LTCPlayer {
     async exportReport() {
         try {
             const result = await eel.export_timecode_report()();
-            
+
             if (result.success) {
                 this.showToast(`Report exported: ${result.filename}`, 'success');
             } else {
@@ -462,11 +578,19 @@ class LTCPlayer {
         const minutes = Math.floor((seconds % 3600) / 60);
         const secs = Math.floor(seconds % 60);
         const ms = Math.floor((seconds % 1) * 1000);
-        
+
+        const hh = hours.toString().padStart(2, '0');
+        const mm = minutes.toString().padStart(2, '0');
+        const ss = secs.toString().padStart(2, '0');
+
         if (includeMs) {
-            return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(3, '0')}`;
+            const prefix = hours > 0 ? `${hh}:` : '';
+            return `${prefix}${mm}:${ss}.${ms.toString().padStart(3, '0')}`;
         } else {
-            return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            if (hours > 0) {
+                return `${hh}:${mm}:${ss}`;
+            }
+            return `${mm}:${ss}`;
         }
     }
 
@@ -474,7 +598,7 @@ class LTCPlayer {
         const hours = Math.floor(seconds / 3600);
         const minutes = Math.floor((seconds % 3600) / 60);
         const secs = Math.floor(seconds % 60);
-        
+
         if (hours > 0) {
             return `${hours}h ${minutes}m ${secs}s`;
         } else {
