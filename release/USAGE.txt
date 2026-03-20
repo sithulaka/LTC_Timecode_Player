@@ -1,25 +1,139 @@
-# LTC Timecode Player - Quick Start
+================================================================================
+  LTC Timecode Player & Analyzer - Usage Guide
+================================================================================
 
-## Running the Application
-1. Double-click on LTC-Timecode-Player.exe
-2. The application will open in your default web browser
-3. Load an LTC audio file using drag & drop or the browse button
+QUICK START
+-----------
 
-## Supported File Formats
-- WAV files (*.wav)
-- AIFF files (*.aiff)  
-- FLAC files (*.flac)
+Windows:
+  1. Download LTC-Timecode-Player.exe
+  2. Double-click to run (no installation required)
+  3. Your default web browser will open automatically with the application
+  4. If Windows Defender SmartScreen appears, click "More info" then "Run anyway"
 
-## System Requirements
-- Windows 10 or later
-- Modern web browser (Chrome, Firefox, Edge)
-- Minimum 4GB RAM recommended
+Linux:
+  1. Install the required system library:
+       sudo apt-get install libsndfile1     (Debian/Ubuntu/Mint)
+       sudo dnf install libsndfile          (Fedora/RHEL/CentOS)
+       sudo pacman -S libsndfile            (Arch Linux)
+  2. Download LTC-Timecode-Player-Linux
+  3. Make it executable:
+       chmod +x LTC-Timecode-Player-Linux
+  4. Run it:
+       ./LTC-Timecode-Player-Linux
+  5. Your default web browser will open automatically with the application
 
-## Troubleshooting
-- If the application doesn't start, try running as administrator
-- Make sure your antivirus isn't blocking the executable
-- Check Windows Defender SmartScreen settings if blocked
+macOS:
+  1. Download LTC-Timecode-Player-macOS
+  2. Make it executable:
+       chmod +x LTC-Timecode-Player-macOS
+  3. Run it:
+       ./LTC-Timecode-Player-macOS
+  4. If Gatekeeper blocks the app:
+       System Settings -> Privacy & Security -> Open Anyway
+  5. Your default web browser will open automatically with the application
 
-## Support
-For issues and support, visit:
-https://github.com/sithulaka/LTC-Timecode-Player/issues
+
+LOADING AN AUDIO FILE
+---------------------
+  - Drag and drop a WAV, AIFF, or FLAC file onto the application window
+  - Or click the "Browse" / "Load File" button and select a file
+  - The application will automatically decode LTC timecode from the audio
+
+Supported formats:
+  - WAV  (.wav)  -- 16-bit and 24-bit, any sample rate
+  - AIFF (.aiff) -- 16-bit and 24-bit, any sample rate
+  - FLAC (.flac) -- lossless compressed audio
+
+
+PLAYBACK CONTROLS
+-----------------
+  [|<]  Jump to start
+  [<]   Step one frame backward
+  [>]   Play / Pause
+  [>>]  Step one frame forward
+  [>|]  Jump to end
+
+  - Click anywhere on the waveform/timeline to jump to that position
+  - The timecode display updates in real time during playback
+
+
+ANALYSIS FEATURES
+-----------------
+  Frame Rate Detection:
+    Automatically detects 23.976, 24, 25, 29.97 (DF/NDF), and 30 fps
+
+  Signal Quality:
+    - Quality score (0-100%) shown in the status panel
+    - Color-coded indicator: Green (good), Yellow (marginal), Red (poor)
+    - Detailed error count and sync word statistics
+
+  Waveform View:
+    - Full waveform display with zoom and pan
+    - Click on the waveform to seek to any position
+
+  Timecode List:
+    - Complete list of decoded timecode frames
+    - Click any entry to jump to that frame
+
+
+EXPORTING RESULTS
+-----------------
+  - Click "Export" to save analysis results as a text or CSV report
+  - The report includes: frame rate, total frames, error count, quality score,
+    and a full timecode frame listing
+
+
+TROUBLESHOOTING
+---------------
+
+Application won't start (Windows):
+  - Run as Administrator (right-click -> "Run as administrator")
+  - Check if antivirus is blocking the executable and add an exception
+  - Ensure a modern browser (Chrome, Edge, Firefox) is installed
+
+Application won't start (Linux):
+  - Check that libsndfile1 is installed: ldconfig -p | grep libsndfile
+  - Try running from a terminal to see error output:
+      ./LTC-Timecode-Player-Linux
+  - Ensure a graphical browser is installed and set as the default
+
+Application won't start (macOS):
+  - Open from terminal to bypass Gatekeeper:
+      xattr -d com.apple.quarantine LTC-Timecode-Player-macOS
+      ./LTC-Timecode-Player-macOS
+
+Browser doesn't open automatically:
+  - Open your browser manually and navigate to: http://localhost:8000
+  - (Port number may vary; check the terminal output for the correct port)
+
+File won't load / no timecode detected:
+  - Ensure the file contains LTC timecode audio (not regular audio)
+  - LTC should ideally be on a dedicated track at a reasonable level
+  - Try normalizing the audio level before loading
+
+Poor signal quality / many errors:
+  - Clean digital source files will decode perfectly
+  - Analogue recordings may have noise; try noise reduction beforehand
+  - Ensure the LTC track was not mixed with other audio
+
+
+SYSTEM REQUIREMENTS
+-------------------
+
+  Windows:  Windows 10 or later, 4 GB RAM, modern web browser
+  Linux:    Ubuntu 20.04+ / Fedora 35+ (or equivalent), libsndfile1, 4 GB RAM,
+            modern web browser (Chrome or Firefox recommended)
+  macOS:    macOS 12 (Monterey) or later, 4 GB RAM, modern web browser
+
+
+SUPPORT
+-------
+
+  Bug reports and feature requests:
+    https://github.com/sithulaka/LTC_Timecode_Player/issues
+
+  Source code:
+    https://github.com/sithulaka/LTC_Timecode_Player
+
+================================================================================
