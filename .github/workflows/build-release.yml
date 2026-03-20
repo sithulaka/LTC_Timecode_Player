@@ -14,9 +14,9 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
-        python-version: '3.9'
+        python-version: '3.11'
 
     - name: Install dependencies
       run: |
@@ -41,9 +41,9 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
-        python-version: '3.9'
+        python-version: '3.11'
 
     - name: Install system dependencies
       run: |
@@ -58,7 +58,21 @@ jobs:
 
     - name: Build executable
       run: |
-        pyinstaller --onefile --add-data "web:web" --hidden-import=tkinter app.py --name=LTC-Timecode-Player-Linux
+        pyinstaller --onefile \
+          --add-data "web:web" \
+          --hidden-import=eel \
+          --hidden-import=numpy \
+          --hidden-import=scipy \
+          --hidden-import=soundfile \
+          --hidden-import=matplotlib \
+          --hidden-import=matplotlib.backends.backend_agg \
+          --hidden-import=tkinter \
+          --hidden-import=tkinter.filedialog \
+          --collect-all eel \
+          app.py --name=LTC-Timecode-Player-Linux
+
+    - name: Make executable
+      run: chmod +x dist/LTC-Timecode-Player-Linux
 
     - name: Upload Linux artifact
       uses: actions/upload-artifact@v4
@@ -73,13 +87,14 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
-        python-version: '3.9'
+        python-version: '3.11'
 
     - name: Install system dependencies
       run: |
         brew install libsndfile
+        brew install python-tk@3.11
 
     - name: Install Python dependencies
       run: |
@@ -89,7 +104,21 @@ jobs:
 
     - name: Build executable
       run: |
-        pyinstaller --onefile --add-data "web:web" --hidden-import=tkinter app.py --name=LTC-Timecode-Player-macOS
+        pyinstaller --onefile \
+          --add-data "web:web" \
+          --hidden-import=eel \
+          --hidden-import=numpy \
+          --hidden-import=scipy \
+          --hidden-import=soundfile \
+          --hidden-import=matplotlib \
+          --hidden-import=matplotlib.backends.backend_agg \
+          --hidden-import=tkinter \
+          --hidden-import=tkinter.filedialog \
+          --collect-all eel \
+          app.py --name=LTC-Timecode-Player-macOS
+
+    - name: Make executable
+      run: chmod +x dist/LTC-Timecode-Player-macOS
 
     - name: Upload macOS artifact
       uses: actions/upload-artifact@v4
@@ -101,6 +130,8 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     needs: [build-windows, build-linux, build-macos]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
     - uses: actions/checkout@v4
@@ -123,49 +154,92 @@ jobs:
         name: LTC-Timecode-Player-macOS
         path: artifacts/macos
 
+    - name: Set executable permissions on Linux and macOS binaries
+      run: |
+        chmod +x artifacts/linux/LTC-Timecode-Player-Linux
+        chmod +x artifacts/macos/LTC-Timecode-Player-macOS
+
     - name: Create GitHub Release
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       with:
+        name: LTC Timecode Player ${{ github.ref_name }}
+        draft: false
+        prerelease: false
         files: |
           artifacts/windows/LTC-Timecode-Player.exe
           artifacts/linux/LTC-Timecode-Player-Linux
           artifacts/macos/LTC-Timecode-Player-macOS
+          release/USAGE.txt
           release/README.md
           release/LICENSE
-          release/USAGE.txt
-        name: LTC Timecode Player ${{ github.ref_name }}
         body: |
           ## LTC Timecode Player ${{ github.ref_name }}
 
+          A professional Linear Time Code (LTC) analysis and playback tool with a modern web-based interface. Designed for broadcast engineers, post-production professionals, and audio engineers.
+
+          ---
+
           ### Downloads
 
-          | Platform | File |
-          |----------|------|
-          | **Windows** | `LTC-Timecode-Player.exe` |
-          | **Linux** | `LTC-Timecode-Player-Linux` |
-          | **macOS** | `LTC-Timecode-Player-macOS` |
+          | Platform | File | Notes |
+          |----------|------|-------|
+          | **Windows** | `LTC-Timecode-Player.exe` | No installation required |
+          | **Linux** | `LTC-Timecode-Player-Linux` | Requires `libsndfile1` |
+          | **macOS** | `LTC-Timecode-Player-macOS` | macOS 12+ (arm64/x86_64) |
 
-          ### What's New
-          - Professional LTC timecode analysis and playback
-          - Modern web-based interface
-          - Support for WAV, AIFF, FLAC formats
-          - Frame-accurate timecode navigation
-          - Signal quality analysis and validation
-          - Export detailed analysis reports
-
-          ### System Requirements
-          - **Windows**: Windows 10 or later, modern web browser
-          - **Linux**: libsndfile installed (`apt install libsndfile1`), modern web browser
-          - **macOS**: macOS 10.15 or later, modern web browser
-          - 4GB RAM recommended
+          ---
 
           ### Installation
-          **Windows:** Download `LTC-Timecode-Player.exe` and double-click to run (no installation required).
 
-          **Linux:** Download `LTC-Timecode-Player-Linux`, make it executable (`chmod +x LTC-Timecode-Player-Linux`), then run it.
+          **Windows**
+          1. Download `LTC-Timecode-Player.exe`
+          2. Double-click to run — no installation required
+          3. If Windows Defender SmartScreen appears, click **More info → Run anyway**
 
-          **macOS:** Download `LTC-Timecode-Player-macOS`, make it executable (`chmod +x LTC-Timecode-Player-macOS`), then run it.
+          **Linux**
+          ```bash
+          # Install required system library
+          sudo apt-get install libsndfile1    # Debian/Ubuntu
+          # or
+          sudo dnf install libsndfile         # Fedora/RHEL
 
-          See `USAGE.txt` for detailed instructions.
+          # Download and run
+          chmod +x LTC-Timecode-Player-Linux
+          ./LTC-Timecode-Player-Linux
+          ```
+
+          **macOS**
+          ```bash
+          chmod +x LTC-Timecode-Player-macOS
+          ./LTC-Timecode-Player-macOS
+          ```
+          > If macOS Gatekeeper blocks the app: **System Settings → Privacy & Security → Open Anyway**
+
+          ---
+
+          ### Features
+
+          - **Audio Format Support**: WAV, AIFF, FLAC
+          - **Frame Rate Detection**: Automatic detection of 23.976, 24, 25, 29.97, 30 fps
+          - **Bi-phase Mark Decoding**: Professional SMPTE/EBU LTC decoder
+          - **Signal Quality Analysis**: Real-time integrity assessment and validation
+          - **Waveform Visualization**: High-quality audio waveform display
+          - **Frame-Accurate Playback**: Step through timecode frame by frame
+          - **Export Reports**: Detailed analysis export
+
+          ---
+
+          ### System Requirements
+
+          | | Windows | Linux | macOS |
+          |---|---|---|---|
+          | **OS** | Windows 10+ | Ubuntu 20.04+ / Fedora 35+ | macOS 12+ |
+          | **Browser** | Chrome, Edge, Firefox | Chrome, Firefox | Safari, Chrome, Firefox |
+          | **RAM** | 4 GB recommended | 4 GB recommended | 4 GB recommended |
+          | **Dependency** | — | `libsndfile1` | — |
+
+          ---
+
+          See `USAGE.txt` for detailed usage instructions and troubleshooting.
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
